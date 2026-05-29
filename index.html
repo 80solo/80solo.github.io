@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Círculo de Quintas</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #f9f9fb;
+    --bg2:     #ffffff;
+    --border:  #e4e4e8;
+    --text:    #111117;
+    --text2:   #6b6b7a;
+    --accent:  #5b5fcf;
+    --radius:  12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:     #0f0f14;
+      --bg2:    #18181f;
+      --border: #2a2a35;
+      --text:   #f0f0f5;
+      --text2:  #8888a0;
+      --accent: #7b7fff;
+    }
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 3rem;
+    gap: 1.5rem;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1380px;
+  }
+
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  #mode-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .mtbtn {
+    padding: 5px 18px;
+    font-size: 12px;
+    font-family: var(--font);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text2);
+    transition: background .15s, color .15s;
+  }
+
+  .mtbtn.active {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* ── 3-column layout ── */
+  #layout {
+    display: grid;
+    grid-template-columns: 200px 500px 1fr;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+    max-width: 1380px;
+  }
+
+  /* ── LEFT: degree legends ── */
+  #left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .legend-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+  }
+
+  .legend-box-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .deg-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 6px;
+    border-radius: 7px;
+    margin-bottom: 3px;
+  }
+
+  .deg-row:last-child { margin-bottom: 0; }
+
+  .deg-sym-lg {
+    font-size: 13px;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .deg-roman-lg {
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 26px;
+  }
+
+  .deg-quality-lg {
+    font-size: 10px;
+    color: var(--text2);
+    min-width: 24px;
+  }
+
+  .deg-emo-lg {
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── CENTRE: canvas + detail ── */
+  #center-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #canvas-wrap {
+    width: 500px;
+    height: 500px;
+    position: relative;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+  }
+
+  #hint {
+    font-size: 12px;
+    color: var(--text2);
+    text-align: center;
+  }
+
+  #detail {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    width: 500px;
+  }
+
+  #detail h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  #detail .sub {
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 1rem;
+  }
+
+  #degrees {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+
+  .degree-card {
+    border-radius: 8px;
+    padding: 8px 4px;
+    text-align: center;
+    border: 1px solid transparent;
+    transition: transform .15s;
+    cursor: default;
+  }
+
+  .degree-card:hover { transform: translateY(-2px); }
+
+  .deg-roman  { font-size: 11px; font-weight: 600; }
+  .deg-chord  { font-size: 14px; font-weight: 600; margin: 3px 0; }
+  .deg-sym    { font-size: 16px; margin: 2px 0; }
+  .deg-emo    { font-size: 9px; color: var(--text2); line-height: 1.3; }
+
+  /* ── RIGHT: key list ── */
+  #right-col {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text2);
+    padding: 0 2px 6px;
+  }
+
+  .key-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .key-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+
+  .key-card:hover  { border-color: var(--accent); }
+
+  .key-card.selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg2));
+  }
+
+  .key-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .key-name { font-size: 12px; font-weight: 700; }
+  .key-type { font-size: 10px; color: var(--text2); }
+
+  .key-chords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+
+  /* chord chip: color comes from JS inline style */
+  .chord-chip {
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Círculo de Quintas</h1>
+  <div id="mode-toggle">
+    <button class="mtbtn active" onclick="setMode('major')">Mayor</button>
+    <button class="mtbtn"        onclick="setMode('minor')">Menor</button>
+  </div>
+</header>
+
+<div id="layout">
+
+  <!-- LEFT: degree legend -->
+  <div id="left-col">
+    <div class="legend-box">
+      <div class="legend-box-title">Grados — Mayor</div>
+      <div id="legend-major"></div>
+    </div>
+    <div class="legend-box">
+      <div class="legend-box-title">Grados — Menor</div>
+      <div id="legend-minor"></div>
+    </div>
+  </div>
+
+  <!-- CENTRE: circle + detail -->
+  <div id="center-col">
+    <div id="canvas-wrap">
+      <canvas id="c" width="500" height="500"></canvas>
+    </div>
+    <div id="hint">Haz clic en una tonalidad para ver sus grados</div>
+    <div id="detail" style="display:none"></div>
+  </div>
+
+  <!-- RIGHT: all tonalities -->
+  <div id="right-col">
+    <div class="section-label">Tonalidades</div>
+    <div id="legend-keys"></div>
+  </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════
+   DATA
+════════════════════════════════════ */
+const KEYS_MAJOR = ['C','G','D','A','E','B','F♯/G♭','D♭','A♭','E♭','B♭','F'];
+const KEYS_MINOR = ['Am','Em','Bm','F♯m','C♯m','G♯m','D♯m/E♭m','B♭m','Fm','Cm','Gm','Dm'];
+
+const MAJOR_ROOTS = ['C','G','D','A','E','B','F#','Db','Ab','Eb','Bb','F'];
+const MINOR_ROOTS = ['A','E','B','F#','C#','G#','D#','Bb','F','C','G','D'];
+
+const MAJOR_INTERVALS = [0,2,4,5,7,9,11];
+const MINOR_INTERVALS = [0,2,3,5,7,8,10];
+
+const MAJOR_DEGREES = [
+  { roman:'I',   quality:'may', emo:'Tónica'      },
+  { roman:'II',  quality:'men', emo:'Melancólico' },
+  { roman:'III', quality:'men', emo:'Nostálgico'  },
+  { roman:'IV',  quality:'may', emo:'Luminoso'    },
+  { roman:'V',   quality:'dom', emo:'Tenso'       },
+  { roman:'VI',  quality:'men', emo:'Suave'       },
+  { roman:'VII', quality:'dis', emo:'Dramático'   },
+];
+
+const MINOR_DEGREES = [
+  { roman:'i',    quality:'men', emo:'Melancólico' },
+  { roman:'ii°',  quality:'dis', emo:'Oscuro'      },
+  { roman:'III',  quality:'may', emo:'Suave'       },
+  { roman:'iv',   quality:'men', emo:'Nostálgico'  },
+  { roman:'v',    quality:'men', emo:'Suspense'    },
+  { roman:'VI',   quality:'may', emo:'Luminoso'    },
+  { roman:'VII',  quality:'may', emo:'Resolutivo'  },
+];
+
+/* quality → chord suffix */
+const QUALITY_SUFFIX = { may:'', men:'m', dis:'°', dom:'7', maj7:'maj7', men7:'m7' };
+
+/* Emotion colors — used ONLY in detail panel & left legend */
+const EMO_COLORS = {
+  'Tónica':      '#7B61FF',
+  'Suave':       '#55EFC4',
+  'Nostálgico':  '#FDCB6E',
+  'Tenso':       '#FF7675',
+  'Oscuro':      '#888fa0',
+  'Resolutivo':  '#00B894',
+  'Melancólico': '#74B9E7',
+  'Dramático':   '#E17055',
+  'Suspense':    '#FD79A8',
+  'Luminoso':    '#F9CA24',
+};
+
+const EMO_SYMBOLS = {
+  'Tónica':      '◈',
+  'Suave':       '◇',
+  'Nostálgico':  '◉',
+  'Tenso':       '▲',
+  'Oscuro':      '■',
+  'Resolutivo':  '●',
+  'Melancólico': '◌',
+  'Dramático':   '▼',
+  'Suspense':    '◆',
+  'Luminoso':    '★',
+};
+
+/* ════════════════════════════════════
+   NOTE UTILITIES
+════════════════════════════════════ */
+const NOTE_INDEX = {
+  'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,
+  'F':5,'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,
+  'A':9,'A#':10,'Bb':10,'B':11
+};
+
+const SHARP_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_NAMES  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const FLAT_KEY_LABELS = ['F','Bb','Eb','Ab','Db','Gb',
+                          'Bbm','Fm','Cm','Gm','Dm','B♭m','Fm','B♭'];
+
+function usesFlats(keyLabel) {
+  const k = keyLabel.replace('♭','b').replace('♯','#');
+  return ['F','Bb','Eb','Ab','Db','Gb','Bbm','Fm','Cm','Gm','Dm'].includes(k);
+}
+
+function getNoteName(chrIdx, keyLabel) {
+  const n = ((chrIdx % 12) + 12) % 12;
+  return usesFlats(keyLabel) ? FLAT_NAMES[n] : SHARP_NAMES[n];
+}
+
+function buildChordLabel(root, quality) {
+  return root + (QUALITY_SUFFIX[quality] ?? quality);
+}
+
+/* Returns array of { chord, rootIdx } */
+function buildChordObjects(rootStr, isMinor, keyLabel) {
+  const rootIdx = NOTE_INDEX[rootStr];
+  if (rootIdx === undefined) return [];
+  const intervals = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
+  const degrees   = isMinor ? MINOR_DEGREES   : MAJOR_DEGREES;
+  return degrees.map((deg, i) => {
+    const chrIdx   = (rootIdx + intervals[i]) % 12;
+    const noteName = getNoteName(chrIdx, keyLabel);
+    return { chord: buildChordLabel(noteName, deg.quality), rootIdx: chrIdx, quality: deg.quality };
+  });
+}
+
+/* ════════════════════════════════════
+   CHORD COLORS — per chromatic root
+   12 perceptually distinct hues
+════════════════════════════════════ */
+// Each of the 12 chromatic pitch classes gets a unique color.
+// Light-mode: bg is a tint, text is the shade.
+// We store [hue, sat] and compute dynamically so dark mode works.
+const NOTE_HUE = [
+  /* C  */ 220,
+  /* C# */ 250,
+  /* D  */ 280,
+  /* D# */ 315,
+  /* E  */ 350,
+  /* F  */ 15,
+  /* F# */ 40,
+  /* G  */ 80,
+  /* G# */ 130,
+  /* A  */ 170,
+  /* A# */ 195,
+  /* B  */ 205,
+];
+
+function chordChipStyle(rootIdx) {
+  const hue = NOTE_HUE[rootIdx];
+  const dark = isDark();
+  if (dark) {
+    return `background:hsl(${hue},40%,22%);color:hsl(${hue},70%,72%)`;
+  } else {
+    return `background:hsl(${hue},55%,91%);color:hsl(${hue},50%,30%)`;
+  }
+}
+
+/* ════════════════════════════════════
+   CANVAS
+════════════════════════════════════ */
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 500, H = 500, cx = 250, cy = 250;
+const R_OUT = 225, R_MID = 165, R_IN = 105, R_CORE = 46;
+
+let currentMode = 'major';
+let selectedIdx = -1;
+
+function isDark() {
+  return window.matchMedia('(prefers-color-scheme:dark)').matches;
+}
+
+function cssVar(v) {
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+}
+
+function drawCircle() {
+  ctx.clearRect(0, 0, W, H);
+  const dark = isDark();
+  const N = 12, slice = Math.PI * 2 / N, off = -Math.PI / 2;
+
+  for (let i = 0; i < N; i++) {
+    const a1  = off + i * slice - slice / 2;
+    const a2  = a1 + slice;
+    const mid = (a1 + a2) / 2;
+    const sel = selectedIdx === i;
+
+    /* outer ring — major */
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R_OUT, a1, a2);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${i*30},${sel?72:52}%,${dark?(sel?44:27):(sel?68:84)}%)`;
+    ctx.fill();
+    ctx.strokeStyle = dark ? 'rgba(0,0,0,.35)' : 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    /* inner ring — minor */
+    ctx.beginPath();
+    ctx.arc(cx, cy, R_MID, a1, a2);
+    ctx.arc(cx, cy, R_IN,  a2, a1, true);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${i*30},${sel?54:36}%,${dark?(sel?32:19):(sel?80:91)}%)`;
+    ctx.fill();
+    ctx.strokeStyle = dark ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    /* labels */
+    const rMaj = (R_MID + R_OUT) / 2;
+    const rMin = (R_IN  + R_MID) / 2;
+
+    ctx.save();
+    ctx.translate(cx + rMaj * Math.cos(mid), cy + rMaj * Math.sin(mid));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${sel?'700':'500'} ${sel?15:13}px -apple-system,sans-serif`;
+    ctx.fillStyle = sel ? (dark?'#fff':'#111') : (dark?'rgba(255,255,255,.9)':'rgba(0,0,0,.82)');
+    ctx.fillText(KEYS_MAJOR[i], 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx + rMin * Math.cos(mid), cy + rMin * Math.sin(mid));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${sel?'500':'400'} 10px -apple-system,sans-serif`;
+    ctx.fillStyle = sel ? (dark?'#ddd':'#222') : (dark?'rgba(200,200,200,.75)':'rgba(0,0,0,.6)');
+    ctx.fillText(KEYS_MINOR[i], 0, 0);
+    ctx.restore();
+  }
+
+  /* core circle */
+  ctx.beginPath();
+  ctx.arc(cx, cy, R_CORE, 0, Math.PI * 2);
+  ctx.fillStyle = cssVar('--bg2') || (dark ? '#1a1a22' : '#fff');
+  ctx.fill();
+  ctx.strokeStyle = cssVar('--border') || (dark ? '#333' : '#ddd');
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = cssVar('--text') || (dark ? '#f0f0f5' : '#111');
+  ctx.font = '600 12px -apple-system,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('5ths', cx, cy - 7);
+  ctx.font = '400 9px -apple-system,sans-serif';
+  ctx.fillStyle = cssVar('--text2') || (dark ? '#888' : '#666');
+  ctx.fillText('Círculo', cx, cy + 8);
+}
+
+function getSliceAt(x, y) {
+  const dx = x - cx, dy = y - cy;
+  const d = Math.sqrt(dx*dx + dy*dy);
+  if (d < R_CORE || d > R_OUT) return { idx: -1 };
+  let a = Math.atan2(dy, dx) + Math.PI / 2;
+  if (a < 0) a += Math.PI * 2;
+  const idx   = Math.floor(a / (Math.PI * 2 / 12)) % 12;
+  const minor = d >= R_IN && d < R_MID;
+  return { idx, minor };
+}
+
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left) * (W / r.width);
+  const sy = (e.clientY - r.top)  * (H / r.height);
+  const { idx, minor } = getSliceAt(sx, sy);
+  if (idx === -1) return;
+  selectedIdx = idx;
+  drawCircle();
+  highlightKeyCard(idx);
+  showDetail(idx, minor ? 'minor' : currentMode === 'minor' ? 'minor' : 'major');
+});
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left) * (W / r.width);
+  const sy = (e.clientY - r.top)  * (H / r.height);
+  canvas.style.cursor = getSliceAt(sx, sy).idx >= 0 ? 'pointer' : 'default';
+});
+
+/* ════════════════════════════════════
+   DETAIL PANEL
+════════════════════════════════════ */
+function showDetail(idx, mode) {
+  const isMinor   = mode === 'minor';
+  const keyLabel  = isMinor ? KEYS_MINOR[idx] : KEYS_MAJOR[idx];
+  const rootStr   = isMinor ? MINOR_ROOTS[idx] : MAJOR_ROOTS[idx];
+  const degrees   = isMinor ? MINOR_DEGREES : MAJOR_DEGREES;
+  const intervals = isMinor ? MINOR_INTERVALS : MAJOR_INTERVALS;
+
+  let html = `<h2>${keyLabel} <span style="font-weight:400;color:var(--text2)">— ${isMinor?'Menor natural':'Mayor'}</span></h2>`;
+  html += `<div class="sub">Grados diatónicos</div><div id="degrees">`;
+
+  const rootIdx0 = NOTE_INDEX[rootStr] ?? 0;
+  degrees.forEach((deg, d) => {
+    const chrIdx   = (rootIdx0 + intervals[d]) % 12;
+    const noteName = getNoteName(chrIdx, keyLabel);
+    const chord    = buildChordLabel(noteName, deg.quality);
+    const col      = EMO_COLORS[deg.emo] || '#888';
+    const sym      = EMO_SYMBOLS[deg.emo] || '◇';
+    html += `<div class="degree-card" style="border-color:${col}33;background:${col}14">
+      <div class="deg-roman" style="color:${col}">${deg.roman}</div>
+      <div class="deg-chord" style="color:${col}">${chord}</div>
+      <div class="deg-sym"   style="color:${col}">${sym}</div>
+      <div class="deg-emo">${deg.emo}</div>
+    </div>`;
+  });
+
+  html += '</div>';
+  const det = document.getElementById('detail');
+  det.innerHTML = html;
+  det.style.display = 'block';
+  document.getElementById('hint').style.display = 'none';
+}
+
+/* ════════════════════════════════════
+   MODE TOGGLE
+════════════════════════════════════ */
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll('.mtbtn').forEach((b, i) => {
+    b.classList.toggle('active', (m === 'major' && i === 0) || (m === 'minor' && i === 1));
+  });
+  if (selectedIdx >= 0) showDetail(selectedIdx, m);
+}
+
+/* ════════════════════════════════════
+   LEFT LEGEND — degree rows
+════════════════════════════════════ */
+function buildDegreeLegend(targetId, degrees) {
+  const el = document.getElementById(targetId);
+  let html = '';
+  degrees.forEach(deg => {
+    const col = EMO_COLORS[deg.emo] || '#888';
+    const sym = EMO_SYMBOLS[deg.emo] || '◇';
+    html += `<div class="deg-row" style="background:${col}10">
+      <span class="deg-sym-lg" style="color:${col}">${sym}</span>
+      <span class="deg-roman-lg" style="color:${col}">${deg.roman}</span>
+      <span class="deg-quality-lg">${deg.quality}</span>
+      <span class="deg-emo-lg" style="color:${col}">${deg.emo}</span>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+/* ════════════════════════════════════
+   RIGHT PANEL — tonality cards
+   Chord chips colored by chromatic root
+════════════════════════════════════ */
+function buildKeyLegend() {
+  const el = document.getElementById('legend-keys');
+  let html = '';
+
+  for (let i = 0; i < 12; i++) {
+    const majKey    = KEYS_MAJOR[i];
+    const minKey    = KEYS_MINOR[i];
+    const majObjs   = buildChordObjects(MAJOR_ROOTS[i], false, majKey);
+    const minObjs   = buildChordObjects(MINOR_ROOTS[i], true,  minKey);
+
+    const chips = (objs) => objs.map(o =>
+      `<span class="chord-chip" style="${chordChipStyle(o.rootIdx)}">${o.chord}</span>`
+    ).join('');
+
+    html += `
+      <div class="key-row">
+        <div class="key-card major" data-idx="${i}" onclick="cardClick(${i},'major')">
+          <div class="key-header">
+            <span class="key-name">${majKey}</span>
+            <span class="key-type">Mayor</span>
+          </div>
+          <div class="key-chords">${chips(majObjs)}</div>
+        </div>
+        <div class="key-card minor" data-idx="${i}" onclick="cardClick(${i},'minor')">
+          <div class="key-header">
+            <span class="key-name">${minKey}</span>
+            <span class="key-type">Menor</span>
+          </div>
+          <div class="key-chords">${chips(minObjs)}</div>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function cardClick(idx, mode) {
+  selectedIdx = idx;
+  drawCircle();
+  highlightKeyCard(idx);
+  showDetail(idx, mode);
+}
+
+function highlightKeyCard(idx) {
+  document.querySelectorAll('.key-card').forEach(c => {
+    c.classList.toggle('selected', parseInt(c.dataset.idx) === idx);
+  });
+}
+
+/* ════════════════════════════════════
+   INIT
+════════════════════════════════════ */
+buildDegreeLegend('legend-major', MAJOR_DEGREES);
+buildDegreeLegend('legend-minor', MINOR_DEGREES);
+buildKeyLegend();
+drawCircle();
+
+/* Re-render chord colors when color scheme changes */
+window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', () => {
+  buildKeyLegend();
+  drawCircle();
+  if (selectedIdx >= 0) showDetail(selectedIdx, currentMode);
+});
+</script>
+</body>
+</html>
